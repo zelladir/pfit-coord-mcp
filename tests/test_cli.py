@@ -51,5 +51,6 @@ def test_post_inserts_row(temp_db, monkeypatch):
     assert r.exit_code == 0
     # Verify via direct DB read
     from pfit_coord_mcp.store import read_messages
+
     rows = read_messages(temp_db, to_agent="claude-code")
     assert any(r_["from_agent"] == "alex" for r_ in rows)

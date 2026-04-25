@@ -149,6 +149,7 @@ async def test_maybe_notify_marks_notified_on_4xx_to_prevent_retry_loop(
 @pytest.mark.asyncio
 async def test_format_body_truncates_at_1024_chars():
     from pfit_coord_mcp.notify import _format_body
+
     long = json.dumps({"text": "x" * 2000})
     out = _format_body(long)
     assert len(out) == 1024
@@ -158,12 +159,14 @@ async def test_format_body_truncates_at_1024_chars():
 @pytest.mark.asyncio
 async def test_format_body_prefers_text_field():
     from pfit_coord_mcp.notify import _format_body
+
     out = _format_body(json.dumps({"text": "hello", "extra": "ignored"}))
     assert out == "hello"
 
 
 def test_format_body_handles_non_dict_payload():
     from pfit_coord_mcp.notify import _format_body
+
     out = _format_body(json.dumps(["a", "b", "c"]))
     # falls through to json.dumps with indent
     assert "[" in out
@@ -172,5 +175,6 @@ def test_format_body_handles_non_dict_payload():
 
 def test_format_body_handles_invalid_json_payload():
     from pfit_coord_mcp.notify import _format_body
+
     out = _format_body("not-json-at-all")
     assert out == "not-json-at-all"

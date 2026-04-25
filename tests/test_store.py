@@ -25,13 +25,13 @@ def test_init_db_creates_schema(tmp_path):
     init_db(str(db))
     conn = sqlite3.connect(str(db))
     try:
-        tables = {row[0] for row in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        )}
+        tables = {
+            row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        }
         assert {"messages", "threads", "meta"} <= tables
-        indexes = {row[0] for row in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='index'"
-        )}
+        indexes = {
+            row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='index'")
+        }
         assert "idx_messages_to_agent" in indexes
         assert "idx_messages_thread" in indexes
         assert "idx_messages_timestamp" in indexes
