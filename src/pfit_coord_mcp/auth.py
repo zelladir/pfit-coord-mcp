@@ -38,6 +38,9 @@ class BearerTokenMiddleware(BaseHTTPMiddleware):
                 status_code=401,
             )
         setattr(request.state, AGENT_ID_STATE_KEY, agent_id)
+        # Top-level scope key (plain str) so pure-ASGI middlewares can read it.
+        # scope["state"] holds a State object, not a dict, so we write at the top level instead.
+        request.scope[AGENT_ID_STATE_KEY] = agent_id
         return await call_next(request)
 
 

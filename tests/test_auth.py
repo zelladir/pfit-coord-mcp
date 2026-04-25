@@ -112,3 +112,26 @@ def test_no_origin_header_passes_through():
     ))
     r = client.get("/echo", headers={"Authorization": "Bearer abc"})
     assert r.status_code == 200
+
+
+def test_agent_id_propagates_to_scope_top_level():
+    """BearerTokenMiddleware must write agent_id to scope['agent_id'] so pure-ASGI middlewares see it."""
+    from starlette.applications import Starlette
+    from starlette.middleware import Middleware
+    from starlette.requests import Request
+    from starlette.responses import PlainTextResponse
+    from starlette.routing import Route
+
+    seen: dict = {}
+
+    async def grab(request: Request):
+        seen["scope_agent"] = request.scope.get(AGENT_ID_STATE_KEY)
+        return PlainTextResponse("ok")
+
+    app = Starlette(
+        routes=[Route("/grab", grab)],
+        middleware=[Middleware(BearerTokenMiddleware, token_map={"abc": "claude-web"})],
+    )
+    client = TestClient(app)
+    client.get("/grab", headers={"Authorization": "Bearer abc"})
+    assert seen["scope_agent"] == "claude-web"
