@@ -36,7 +36,9 @@ def test_rule_matches_status_never():
 
 @pytest.mark.asyncio
 async def test_maybe_notify_dry_run_marks_notified_without_http(temp_db, dry_run_config):
-    msg_id = post_message(temp_db, "codex", "alex", "stop_and_ask", json.dumps({"text": "ping"}), None)
+    msg_id = post_message(
+        temp_db, "codex", "alex", "stop_and_ask", json.dumps({"text": "ping"}), None
+    )
     result = await maybe_notify(dry_run_config, msg_id)
     assert result.notified is False
     assert result.reason == "dry_run"
@@ -93,7 +95,7 @@ async def test_maybe_notify_posts_to_pushover_with_priority_1_for_stop_and_ask(
 
     sent = httpx_mock.get_request()
     assert sent is not None
-    body = dict([kv.split("=", 1) for kv in sent.content.decode().split("&")])
+    body = dict(kv.split("=", 1) for kv in sent.content.decode().split("&"))
     # urlencoded — pytest-httpx exposes raw bytes; we decode and split.
     assert body["token"] == "a-test"
     assert body["user"] == "u-test"
@@ -104,12 +106,14 @@ async def test_maybe_notify_posts_to_pushover_with_priority_1_for_stop_and_ask(
 async def test_maybe_notify_uses_priority_0_for_handoff_to_alex(
     temp_db, live_config, httpx_mock,
 ):
-    httpx_mock.add_response(method="POST", url=PUSHOVER_URL, json={"status": 1, "request": "x"}, status_code=200)
+    httpx_mock.add_response(
+        method="POST", url=PUSHOVER_URL, json={"status": 1, "request": "x"}, status_code=200
+    )
     msg_id = post_message(temp_db, "codex", "alex", "handoff", "{}", None)
     result = await maybe_notify(live_config, msg_id)
     assert result.notified is True
     sent = httpx_mock.get_request()
-    body = dict([kv.split("=", 1) for kv in sent.content.decode().split("&")])
+    body = dict(kv.split("=", 1) for kv in sent.content.decode().split("&"))
     assert body["priority"] == "0"
 
 

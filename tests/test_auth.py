@@ -115,7 +115,8 @@ def test_no_origin_header_passes_through():
 
 
 def test_agent_id_propagates_to_scope_top_level():
-    """BearerTokenMiddleware must write agent_id to scope['agent_id'] so pure-ASGI middlewares see it."""
+    """BearerTokenMiddleware must write agent_id to scope['agent_id'] so pure-ASGI
+    middlewares see it."""
     from starlette.applications import Starlette
     from starlette.middleware import Middleware
     from starlette.requests import Request

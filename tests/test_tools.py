@@ -130,8 +130,9 @@ async def test_coord_ack_idempotent(mcp_with_config):
         _current_agent.reset(poster)
     reader = _set_agent("alex")
     try:
-        await _get_tool(mcp, "coord_ack")(CoordAckInput(message_ids=[posted["message_id"]]), ctx=None)
-        await _get_tool(mcp, "coord_ack")(CoordAckInput(message_ids=[posted["message_id"]]), ctx=None)
+        ack_input = CoordAckInput(message_ids=[posted["message_id"]])
+        await _get_tool(mcp, "coord_ack")(ack_input, ctx=None)
+        await _get_tool(mcp, "coord_ack")(ack_input, ctx=None)
         row = get_message(cfg.server.db_path, posted["message_id"])
         assert json.loads(row["read_by"]).count("alex") == 1
     finally:

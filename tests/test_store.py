@@ -5,8 +5,14 @@ import json
 import sqlite3
 
 from pfit_coord_mcp.store import (
+    ack_messages,
+    close_thread,
+    create_thread,
     get_message,
     init_db,
+    list_threads,
+    mark_notified,
+    pending_notifications,
     post_message,
     read_messages,
 )
@@ -125,7 +131,8 @@ def test_read_messages_limit_capped_at_200(temp_db):
     for _ in range(5):
         post_message(temp_db, "codex", "alex", "note", "{}", None)
     rows = read_messages(temp_db, to_agent="alex", limit=10_000)
-    # caller-supplied giant limit must not exceed 200; we only have 5 here so this only checks the mechanism doesn't crash
+    # caller-supplied giant limit must not exceed 200; we only have 5 here so this only
+    # checks the capping mechanism doesn't crash.
     assert len(rows) == 5
 
 
@@ -133,9 +140,6 @@ def test_read_messages_default_returns_recent(temp_db):
     post_message(temp_db, "codex", "alex", "note", "{}", None)
     rows = read_messages(temp_db, to_agent="alex")
     assert len(rows) == 1
-
-
-from pfit_coord_mcp.store import ack_messages, mark_notified, pending_notifications
 
 
 def test_ack_messages_appends_agent(temp_db):
@@ -176,7 +180,9 @@ def test_pending_notifications_returns_unnotified_eligible(temp_db):
     """pending_notifications returns rows that match a notify rule and have no notified_at."""
     eligible = post_message(temp_db, "codex", "alex", "stop_and_ask", "{}", None)
     not_eligible_kind = post_message(temp_db, "codex", "alex", "status", "{}", None)
-    not_eligible_recipient = post_message(temp_db, "codex", "claude-web", "stop_and_ask", "{}", None)
+    not_eligible_recipient = post_message(
+        temp_db, "codex", "claude-web", "stop_and_ask", "{}", None
+    )
     already = post_message(temp_db, "codex", "alex", "stop_and_ask", "{}", None)
     mark_notified(temp_db, already, error=None)
 
@@ -186,9 +192,6 @@ def test_pending_notifications_returns_unnotified_eligible(temp_db):
     # stop_and_ask to a non-alex recipient still triggers because rule is "stop_and_ask -> any"
     assert not_eligible_recipient in pending_ids
     assert already not in pending_ids
-
-
-from pfit_coord_mcp.store import close_thread, create_thread, list_threads
 
 
 def test_create_thread_returns_slug(temp_db):

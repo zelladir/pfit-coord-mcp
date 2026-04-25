@@ -20,10 +20,10 @@ TRUNCATION_SUFFIX = "[truncated]"
 
 # (kind, recipient_pattern) -> Pushover priority
 _RULES: dict[tuple[str, str], int] = {
-    ("stop_and_ask", "*"):     1,  # high priority, bypasses quiet hours
-    ("handoff",       "alex"): 0,
+    ("stop_and_ask", "*"): 1,  # high priority, bypasses quiet hours
+    ("handoff", "alex"): 0,
     ("task_complete", "alex"): 0,
-    ("question",      "alex"): 0,
+    ("question", "alex"): 0,
 }
 
 

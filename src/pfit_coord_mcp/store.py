@@ -134,10 +134,10 @@ def mark_notified(db_path: str, message_id: int, error: str | None) -> None:
 
 # Server-enforced notification rules. (kind, recipient_predicate) -> priority
 NOTIFY_KIND_RULES = {
-    "stop_and_ask": "*",      # any recipient
-    "handoff":      "alex",   # only when addressed to alex
+    "stop_and_ask": "*",  # any recipient
+    "handoff": "alex",  # only when addressed to alex
     "task_complete": "alex",
-    "question":     "alex",
+    "question": "alex",
 }
 
 
@@ -208,7 +208,8 @@ def create_thread(db_path: str, title: str, created_by: str) -> str:
     tid = "thr-" + secrets.token_urlsafe(6)
     with _connect(db_path) as conn:
         conn.execute(
-            "INSERT INTO threads (id, title, created_by, created_at, closed) VALUES (?, ?, ?, ?, 0)",
+            "INSERT INTO threads (id, title, created_by, created_at, closed)"
+            " VALUES (?, ?, ?, ?, 0)",
             (tid, title, created_by, _now_iso()),
         )
     return tid

@@ -30,5 +30,9 @@ def temp_config(tmp_path, temp_db):
             user_key="",
             app_token="",
         ),
-        allowed_origins=["http://localhost", "http://localhost:8765", "https://mcp.asquaredhome.com"],
+        allowed_origins=[
+            "http://localhost",
+            "http://localhost:8765",
+            "https://mcp.asquaredhome.com",
+        ],
     )

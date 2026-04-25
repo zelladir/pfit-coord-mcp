@@ -128,7 +128,10 @@ def threads(include_closed: bool) -> None:
     t.add_column("created_at")
     t.add_column("closed")
     for r in rows:
-        t.add_row(r["id"], r["title"], r["created_by"], r["created_at"], "yes" if r["closed"] else "no")
+        t.add_row(
+            r["id"], r["title"], r["created_by"], r["created_at"],
+            "yes" if r["closed"] else "no",
+        )
     console.print(t)
 
 

@@ -1,4 +1,5 @@
-"""End-to-end round-trip: post stop_and_ask -> notify fires -> read as another agent -> ack -> reply."""
+"""End-to-end round-trip: post stop_and_ask -> notify fires -> read as another agent -> ack
+-> reply."""
 from __future__ import annotations
 
 import pytest
