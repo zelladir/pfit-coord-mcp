@@ -1,0 +1,32 @@
+# Coordination MCP server config.
+# Copy this file to `config.toml` (gitignored) and fill in real values.
+
+[server]
+port = 8765
+db_path = "./data/coord.db"
+
+[tokens]
+# Generate fresh tokens with:
+#   python -c "import secrets; print(secrets.token_urlsafe(32))"
+# Map each token string to one of: claude-web, claude-code, codex
+"REPLACE_WITH_GENERATED_TOKEN_1" = "claude-web"
+"REPLACE_WITH_GENERATED_TOKEN_2" = "claude-code"
+"REPLACE_WITH_GENERATED_TOKEN_3" = "codex"
+
+[pushover]
+# Dry-run logs notifications without calling the API. Setting dry_run = false
+# only takes effect when both user_key and app_token are non-empty (defensive
+# default in config.py).
+dry_run = false
+user_key = "REPLACE_WITH_PUSHOVER_USER_KEY"
+app_token = "REPLACE_WITH_PUSHOVER_APP_TOKEN"
+
+[security]
+# Origin allowlist for DNS-rebinding protection (per MCP streamable HTTP spec).
+# The middleware allows requests with no Origin header (CLI / curl) and rejects
+# unmatched browser-origin requests.
+allowed_origins = [
+    "https://mcp.asquaredhome.com",
+    "http://localhost:8765",
+    "http://127.0.0.1:8765",
+]
