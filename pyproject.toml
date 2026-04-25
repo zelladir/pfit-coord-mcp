@@ -41,10 +41,14 @@ packages = ["src/pfit_coord_mcp"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+src = ["src"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "C4", "RUF"]
 ignore = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["pfit_coord_mcp"]
 
 [tool.mypy]
 python_version = "3.12"

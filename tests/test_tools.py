@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 
 import pytest
+from starlette.testclient import TestClient
 
 from pfit_coord_mcp.models import (
     CoordAckInput,
@@ -12,7 +13,7 @@ from pfit_coord_mcp.models import (
     CoordStatusInput,
     CoordThreadsInput,
 )
-from pfit_coord_mcp.server import _current_agent, build_mcp
+from pfit_coord_mcp.server import _current_agent, build_app, build_mcp
 from pfit_coord_mcp.store import get_message
 
 
@@ -156,8 +157,6 @@ async def test_coord_status_posts_to_broadcast_no_notify(mcp_with_config):
 
 
 def test_health_endpoint_returns_ok(temp_config):
-    from pfit_coord_mcp.server import build_app
-    from starlette.testclient import TestClient
     app = build_app(temp_config)
     client = TestClient(app)
     r = client.get("/health")
@@ -168,8 +167,6 @@ def test_health_endpoint_returns_ok(temp_config):
 
 
 def test_mcp_endpoint_requires_auth(temp_config):
-    from pfit_coord_mcp.server import build_app
-    from starlette.testclient import TestClient
     app = build_app(temp_config)
     client = TestClient(app)
     r = client.post("/mcp", json={})
