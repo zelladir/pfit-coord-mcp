@@ -152,3 +152,24 @@ async def test_coord_status_posts_to_broadcast_no_notify(mcp_with_config):
         assert row["notified_at"] is None  # status never notifies
     finally:
         _current_agent.reset(token)
+
+
+def test_health_endpoint_returns_ok(temp_config):
+    from starlette.testclient import TestClient
+    from pfit_coord_mcp.server import build_app
+    app = build_app(temp_config)
+    client = TestClient(app)
+    r = client.get("/health")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "ok"
+    assert "version" in body
+
+
+def test_mcp_endpoint_requires_auth(temp_config):
+    from starlette.testclient import TestClient
+    from pfit_coord_mcp.server import build_app
+    app = build_app(temp_config)
+    client = TestClient(app)
+    r = client.post("/mcp", json={})
+    assert r.status_code == 401
