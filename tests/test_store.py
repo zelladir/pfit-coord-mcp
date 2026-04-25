@@ -1,9 +1,15 @@
 """SQLite store tests."""
 from __future__ import annotations
 
+import json
 import sqlite3
 
-from pfit_coord_mcp.store import init_db
+from pfit_coord_mcp.store import (
+    get_message,
+    init_db,
+    post_message,
+    read_messages,
+)
 
 
 def test_init_db_creates_schema(tmp_path):
@@ -43,3 +49,87 @@ def test_init_db_enables_wal_mode(tmp_path):
         assert mode.lower() == "wal"
     finally:
         conn.close()
+
+
+def test_post_message_returns_id(temp_db):
+    msg_id = post_message(
+        db_path=temp_db,
+        from_agent="claude-code",
+        to_agent="alex",
+        kind="stop_and_ask",
+        payload=json.dumps({"question": "approve plan?"}),
+        thread_id=None,
+    )
+    assert isinstance(msg_id, int)
+    assert msg_id > 0
+
+
+def test_post_then_get_round_trip(temp_db):
+    msg_id = post_message(
+        db_path=temp_db,
+        from_agent="codex",
+        to_agent="claude-code",
+        kind="answer",
+        payload=json.dumps({"text": "yes"}),
+        thread_id="thr-1",
+    )
+    row = get_message(temp_db, msg_id)
+    assert row is not None
+    assert row["from_agent"] == "codex"
+    assert row["to_agent"] == "claude-code"
+    assert row["kind"] == "answer"
+    assert json.loads(row["payload"]) == {"text": "yes"}
+    assert row["thread_id"] == "thr-1"
+    assert row["read_by"] == "[]"
+    assert row["notified_at"] is None
+
+
+def test_read_messages_filters_by_to_agent(temp_db):
+    post_message(temp_db, "codex", "alex", "note", "{}", None)
+    post_message(temp_db, "codex", "claude-web", "note", "{}", None)
+    post_message(temp_db, "codex", "broadcast", "status", "{}", None)
+    rows = read_messages(temp_db, to_agent="alex")
+    # alex sees: messages addressed to alex + broadcast
+    to_targets = [r["to_agent"] for r in rows]
+    assert "alex" in to_targets
+    assert "broadcast" in to_targets
+    assert "claude-web" not in to_targets
+
+
+def test_read_messages_since_id_excludes_lower_or_equal(temp_db):
+    a = post_message(temp_db, "codex", "alex", "note", "{}", None)
+    b = post_message(temp_db, "codex", "alex", "note", "{}", None)
+    rows = read_messages(temp_db, to_agent="alex", since_id=a)
+    ids = [r["id"] for r in rows]
+    assert a not in ids
+    assert b in ids
+
+
+def test_read_messages_filters_by_thread(temp_db):
+    post_message(temp_db, "codex", "alex", "note", "{}", "thr-A")
+    post_message(temp_db, "codex", "alex", "note", "{}", "thr-B")
+    rows = read_messages(temp_db, to_agent="alex", thread_id="thr-A")
+    assert all(r["thread_id"] == "thr-A" for r in rows)
+    assert len(rows) == 1
+
+
+def test_read_messages_filters_by_kinds(temp_db):
+    post_message(temp_db, "codex", "alex", "note", "{}", None)
+    post_message(temp_db, "codex", "alex", "stop_and_ask", "{}", None)
+    rows = read_messages(temp_db, to_agent="alex", kinds=["stop_and_ask"])
+    assert all(r["kind"] == "stop_and_ask" for r in rows)
+    assert len(rows) == 1
+
+
+def test_read_messages_limit_capped_at_200(temp_db):
+    for _ in range(5):
+        post_message(temp_db, "codex", "alex", "note", "{}", None)
+    rows = read_messages(temp_db, to_agent="alex", limit=10_000)
+    # caller-supplied giant limit must not exceed 200; we only have 5 here so this only checks the mechanism doesn't crash
+    assert len(rows) == 5
+
+
+def test_read_messages_default_returns_recent(temp_db):
+    post_message(temp_db, "codex", "alex", "note", "{}", None)
+    rows = read_messages(temp_db, to_agent="alex")
+    assert len(rows) == 1
