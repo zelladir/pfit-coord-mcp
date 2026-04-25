@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import secrets
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -200,3 +201,30 @@ def read_messages(
     params.append(capped_limit)
     with _connect(db_path) as conn:
         return list(conn.execute(sql, params).fetchall())
+
+
+def create_thread(db_path: str, title: str, created_by: str) -> str:
+    """Create a thread with a short URL-safe slug ID."""
+    tid = "thr-" + secrets.token_urlsafe(6)
+    with _connect(db_path) as conn:
+        conn.execute(
+            "INSERT INTO threads (id, title, created_by, created_at, closed) VALUES (?, ?, ?, ?, 0)",
+            (tid, title, created_by, _now_iso()),
+        )
+    return tid
+
+
+def list_threads(db_path: str, include_closed: bool = False) -> list[sqlite3.Row]:
+    """Return threads ordered by creation time descending."""
+    sql = "SELECT * FROM threads"
+    if not include_closed:
+        sql += " WHERE closed = 0"
+    sql += " ORDER BY created_at DESC"
+    with _connect(db_path) as conn:
+        return list(conn.execute(sql).fetchall())
+
+
+def close_thread(db_path: str, thread_id: str) -> None:
+    """Mark a thread as closed."""
+    with _connect(db_path) as conn:
+        conn.execute("UPDATE threads SET closed = 1 WHERE id = ?", (thread_id,))

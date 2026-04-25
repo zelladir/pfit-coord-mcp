@@ -186,3 +186,23 @@ def test_pending_notifications_returns_unnotified_eligible(temp_db):
     # stop_and_ask to a non-alex recipient still triggers because rule is "stop_and_ask -> any"
     assert not_eligible_recipient in pending_ids
     assert already not in pending_ids
+
+
+from pfit_coord_mcp.store import close_thread, create_thread, list_threads
+
+
+def test_create_thread_returns_slug(temp_db):
+    tid = create_thread(temp_db, title="Wave A leadership cleanup", created_by="codex")
+    assert tid
+    assert tid.startswith("thr-")
+
+
+def test_list_threads_excludes_closed_by_default(temp_db):
+    open_id = create_thread(temp_db, title="open", created_by="codex")
+    closed_id = create_thread(temp_db, title="closed", created_by="codex")
+    close_thread(temp_db, closed_id)
+    open_only = {r["id"] for r in list_threads(temp_db, include_closed=False)}
+    all_threads = {r["id"] for r in list_threads(temp_db, include_closed=True)}
+    assert open_id in open_only
+    assert closed_id not in open_only
+    assert closed_id in all_threads
