@@ -71,3 +71,44 @@ def test_health_endpoint_bypasses_auth():
     )
     client = TestClient(app)
     assert client.get(HEALTH_PATH).status_code == 200
+
+
+def test_origin_allowed_passes():
+    client = TestClient(_build_app(
+        {"abc": "claude-web"},
+        allowed_origins=["https://mcp.asquaredhome.com"],
+    ))
+    r = client.get(
+        "/echo",
+        headers={
+            "Authorization": "Bearer abc",
+            "Origin": "https://mcp.asquaredhome.com",
+        },
+    )
+    assert r.status_code == 200
+
+
+def test_origin_disallowed_rejected():
+    client = TestClient(_build_app(
+        {"abc": "claude-web"},
+        allowed_origins=["https://mcp.asquaredhome.com"],
+    ))
+    r = client.get(
+        "/echo",
+        headers={
+            "Authorization": "Bearer abc",
+            "Origin": "https://attacker.example.com",
+        },
+    )
+    assert r.status_code == 403
+    assert r.json()["error"] == "forbidden_origin"
+
+
+def test_no_origin_header_passes_through():
+    """CLI / curl / non-browser clients have no Origin and must pass."""
+    client = TestClient(_build_app(
+        {"abc": "claude-web"},
+        allowed_origins=["https://mcp.asquaredhome.com"],
+    ))
+    r = client.get("/echo", headers={"Authorization": "Bearer abc"})
+    assert r.status_code == 200
