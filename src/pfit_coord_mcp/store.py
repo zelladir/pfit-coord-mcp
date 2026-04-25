@@ -191,9 +191,7 @@ def read_messages(
     if unread_only:
         # SQLite JSON1 — `json_each(read_by)` exposes the array elements;
         # the NOT EXISTS keeps rows where to_agent is not yet in the array.
-        clauses.append(
-            "NOT EXISTS (SELECT 1 FROM json_each(read_by) WHERE value = ?)"
-        )
+        clauses.append("NOT EXISTS (SELECT 1 FROM json_each(read_by) WHERE value = ?)")
         params.append(to_agent)
 
     sql = "SELECT * FROM messages WHERE " + " AND ".join(clauses) + " ORDER BY id ASC LIMIT ?"

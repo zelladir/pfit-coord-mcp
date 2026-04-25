@@ -92,8 +92,9 @@ async def test_full_round_trip_with_real_notify(live_config, httpx_mock):
         # identity. The CLI reads alex's messages directly from SQLite. Reading via
         # the tool here exercises the route-by-recipient logic regardless.
         result = await read_fn(CoordReadInput(), ctx=None)
-        assert any(m["id"] == posted_id for m in result["messages"]), \
+        assert any(m["id"] == posted_id for m in result["messages"]), (
             f"expected posted message in alex's queue; got {result}"
+        )
     finally:
         _current_agent.reset(token)
 

@@ -34,13 +34,20 @@ def test_read_filters_by_thread(temp_db, monkeypatch):
 def test_post_inserts_row(temp_db, monkeypatch):
     monkeypatch.setenv("COORD_DB_PATH", temp_db)
     runner = CliRunner()
-    r = runner.invoke(cli, [
-        "post",
-        "--from-agent", "alex",
-        "--to", "claude-code",
-        "--kind", "answer",
-        "--text", "go ahead",
-    ])
+    r = runner.invoke(
+        cli,
+        [
+            "post",
+            "--from-agent",
+            "alex",
+            "--to",
+            "claude-code",
+            "--kind",
+            "answer",
+            "--text",
+            "go ahead",
+        ],
+    )
     assert r.exit_code == 0
     # Verify via direct DB read
     from pfit_coord_mcp.store import read_messages

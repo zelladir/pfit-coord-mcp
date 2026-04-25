@@ -77,7 +77,9 @@ def live_config(temp_db):
 
 @pytest.mark.asyncio
 async def test_maybe_notify_posts_to_pushover_with_priority_1_for_stop_and_ask(
-    temp_db, live_config, httpx_mock,
+    temp_db,
+    live_config,
+    httpx_mock,
 ):
     httpx_mock.add_response(
         method="POST",
@@ -108,7 +110,9 @@ async def test_maybe_notify_posts_to_pushover_with_priority_1_for_stop_and_ask(
 
 @pytest.mark.asyncio
 async def test_maybe_notify_uses_priority_0_for_handoff_to_alex(
-    temp_db, live_config, httpx_mock,
+    temp_db,
+    live_config,
+    httpx_mock,
 ):
     httpx_mock.add_response(
         method="POST", url=PUSHOVER_URL, json={"status": 1, "request": "x"}, status_code=200
@@ -123,7 +127,9 @@ async def test_maybe_notify_uses_priority_0_for_handoff_to_alex(
 
 @pytest.mark.asyncio
 async def test_maybe_notify_marks_notified_on_4xx_to_prevent_retry_loop(
-    temp_db, live_config, httpx_mock,
+    temp_db,
+    live_config,
+    httpx_mock,
 ):
     httpx_mock.add_response(
         method="POST",
