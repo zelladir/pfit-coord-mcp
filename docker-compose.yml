@@ -1,0 +1,22 @@
+services:
+  coord-mcp:
+    build: .
+    image: pfit-coord-mcp:dev
+    container_name: pfit-coord-mcp
+    # Bind to 127.0.0.1 only — never expose this socket to the LAN. The
+    # public surface is mediated by Cloudflare Tunnel (running on the host),
+    # not by this port mapping.
+    ports:
+      - "127.0.0.1:8765:8765"
+    volumes:
+      - ./data:/app/data
+      - ./config.toml:/app/config.toml:ro
+    environment:
+      COORD_CONFIG: /app/config.toml
+      COORD_LOG_LEVEL: INFO
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8765/health').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
