@@ -50,7 +50,6 @@ ignore = []
 [tool.ruff.lint.isort]
 known-first-party = ["pfit_coord_mcp"]
 known-third-party = ["mcp", "starlette", "uvicorn", "httpx", "click", "rich", "pydantic", "pytest"]
-force-sort-within-sections = true
 
 [tool.mypy]
 python_version = "3.12"
