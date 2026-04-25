@@ -20,8 +20,8 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 from . import __version__
 from .auth import (
     AGENT_ID_STATE_KEY,
-    BearerTokenMiddleware,
     HEALTH_PATH,
+    BearerTokenMiddleware,
     OriginAllowlistMiddleware,
 )
 from .config import Config, load_config
