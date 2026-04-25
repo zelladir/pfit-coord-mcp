@@ -91,7 +91,8 @@ def build_mcp(config: Config) -> FastMCP:
 
     @mcp.tool(name="coord_post")
     async def coord_post(
-        params: CoordPostInput, ctx: Context  # type: ignore[type-arg]
+        params: CoordPostInput,
+        ctx: Context,  # type: ignore[type-arg]
     ) -> dict[str, Any]:
         """Post a message to the coordination queue.
 
@@ -123,7 +124,8 @@ def build_mcp(config: Config) -> FastMCP:
 
     @mcp.tool(name="coord_read")
     async def coord_read(
-        params: CoordReadInput, ctx: Context  # type: ignore[type-arg]
+        params: CoordReadInput,
+        ctx: Context,  # type: ignore[type-arg]
     ) -> dict[str, Any]:
         """Read messages addressed to your agent ID (or to broadcast).
 
@@ -148,7 +150,8 @@ def build_mcp(config: Config) -> FastMCP:
 
     @mcp.tool(name="coord_threads")
     async def coord_threads_tool(
-        params: CoordThreadsInput, ctx: Context  # type: ignore[type-arg]
+        params: CoordThreadsInput,
+        ctx: Context,  # type: ignore[type-arg]
     ) -> dict[str, Any]:
         """Manage coordination threads (create / list / close)."""
         agent_id = _require_agent_id()
@@ -169,7 +172,8 @@ def build_mcp(config: Config) -> FastMCP:
 
     @mcp.tool(name="coord_ack")
     async def coord_ack(
-        params: CoordAckInput, ctx: Context  # type: ignore[type-arg]
+        params: CoordAckInput,
+        ctx: Context,  # type: ignore[type-arg]
     ) -> dict[str, Any]:
         """Mark messages as read by your agent ID."""
         agent_id = _require_agent_id()
@@ -178,7 +182,8 @@ def build_mcp(config: Config) -> FastMCP:
 
     @mcp.tool(name="coord_status")
     async def coord_status(
-        params: CoordStatusInput, ctx: Context  # type: ignore[type-arg]
+        params: CoordStatusInput,
+        ctx: Context,  # type: ignore[type-arg]
     ) -> dict[str, Any]:
         """Post a lightweight status heartbeat to broadcast (no notification)."""
         from_agent = _require_agent_id()
