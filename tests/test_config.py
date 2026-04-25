@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from pfit_coord_mcp.config import Config, load_config
+from pfit_coord_mcp.config import load_config
 
 
 def test_load_config_from_toml(tmp_path):

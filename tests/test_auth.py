@@ -119,7 +119,6 @@ def test_agent_id_propagates_to_scope_top_level():
     middlewares see it."""
     from starlette.applications import Starlette
     from starlette.middleware import Middleware
-    from starlette.requests import Request
     from starlette.responses import PlainTextResponse
     from starlette.routing import Route
 

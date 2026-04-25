@@ -4,10 +4,11 @@ from __future__ import annotations
 import json
 import secrets
 import sqlite3
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterator, Sequence
+from typing import Any
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS messages (
@@ -66,7 +67,7 @@ def _connect(path: str) -> Iterator[sqlite3.Connection]:
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 RECIPIENT_BROADCAST = "broadcast"

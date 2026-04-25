@@ -41,7 +41,7 @@ def _render_messages(rows: list[Any]) -> None:
                 payload.get("text") or payload.get("summary")
                 or payload.get("question") or json.dumps(payload)
             )
-        except Exception:  # noqa: BLE001  # any malformed payload falls through to raw
+        except Exception:  # any malformed payload falls through to raw
             payload_str = r["payload"]
         table.add_row(
             str(r["id"]),

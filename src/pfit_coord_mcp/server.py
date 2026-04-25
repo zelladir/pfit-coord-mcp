@@ -69,7 +69,7 @@ class AgentContextMiddleware:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
-        agent_id: str | None = scope.get("agent_id")
+        agent_id: str | None = scope.get(AGENT_ID_STATE_KEY)
         token = _current_agent.set(agent_id)
         try:
             await self.app(scope, receive, send)
