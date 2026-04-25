@@ -6,7 +6,7 @@ import json
 import pytest
 
 from pfit_coord_mcp.config import Config, PushoverConfig, ServerConfig
-from pfit_coord_mcp.notify import maybe_notify, rule_matches
+from pfit_coord_mcp.notify import PUSHOVER_URL, maybe_notify, rule_matches
 from pfit_coord_mcp.store import get_message, post_message
 
 
@@ -60,3 +60,87 @@ async def test_maybe_notify_skips_rule_mismatch(temp_db, dry_run_config):
     assert result.reason == "rule_not_matched"
     row = get_message(temp_db, msg_id)
     assert row["notified_at"] is None  # left untouched
+
+
+@pytest.fixture
+def live_config(temp_db):
+    return Config(
+        server=ServerConfig(port=8765, db_path=temp_db),
+        tokens={},
+        pushover=PushoverConfig(dry_run=False, user_key="u-test", app_token="a-test"),
+        allowed_origins=[],
+    )
+
+
+@pytest.mark.asyncio
+async def test_maybe_notify_posts_to_pushover_with_priority_1_for_stop_and_ask(
+    temp_db, live_config, httpx_mock,
+):
+    httpx_mock.add_response(
+        method="POST",
+        url=PUSHOVER_URL,
+        json={"status": 1, "request": "abc"},
+        status_code=200,
+    )
+    msg_id = post_message(
+        temp_db, "codex", "alex", "stop_and_ask",
+        json.dumps({"question": "approve plan?"}),
+        None,
+    )
+    result = await maybe_notify(live_config, msg_id)
+    assert result.notified is True
+    assert result.error is None
+
+    sent = httpx_mock.get_request()
+    assert sent is not None
+    body = dict([kv.split("=", 1) for kv in sent.content.decode().split("&")])
+    # urlencoded — pytest-httpx exposes raw bytes; we decode and split.
+    assert body["token"] == "a-test"
+    assert body["user"] == "u-test"
+    assert body["priority"] == "1"
+
+
+@pytest.mark.asyncio
+async def test_maybe_notify_uses_priority_0_for_handoff_to_alex(
+    temp_db, live_config, httpx_mock,
+):
+    httpx_mock.add_response(method="POST", url=PUSHOVER_URL, json={"status": 1, "request": "x"}, status_code=200)
+    msg_id = post_message(temp_db, "codex", "alex", "handoff", "{}", None)
+    result = await maybe_notify(live_config, msg_id)
+    assert result.notified is True
+    sent = httpx_mock.get_request()
+    body = dict([kv.split("=", 1) for kv in sent.content.decode().split("&")])
+    assert body["priority"] == "0"
+
+
+@pytest.mark.asyncio
+async def test_maybe_notify_marks_notified_on_4xx_to_prevent_retry_loop(
+    temp_db, live_config, httpx_mock,
+):
+    httpx_mock.add_response(
+        method="POST", url=PUSHOVER_URL, status_code=400,
+        json={"status": 0, "errors": ["bad request"]},
+    )
+    msg_id = post_message(temp_db, "codex", "alex", "stop_and_ask", "{}", None)
+    result = await maybe_notify(live_config, msg_id)
+    assert result.notified is False
+    assert result.error is not None
+    row = get_message(temp_db, msg_id)
+    assert row["notified_at"] is not None  # set so we don't retry
+    assert "400" in (row["notification_error"] or "")
+
+
+@pytest.mark.asyncio
+async def test_format_body_truncates_at_1024_chars():
+    from pfit_coord_mcp.notify import _format_body
+    long = json.dumps({"text": "x" * 2000})
+    out = _format_body(long)
+    assert len(out) == 1024
+    assert out.endswith("[truncated]")
+
+
+@pytest.mark.asyncio
+async def test_format_body_prefers_text_field():
+    from pfit_coord_mcp.notify import _format_body
+    out = _format_body(json.dumps({"text": "hello", "extra": "ignored"}))
+    assert out == "hello"
