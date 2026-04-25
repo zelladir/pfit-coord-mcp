@@ -1,14 +1,13 @@
 """FastMCP server with bearer-auth + origin-validated streamable HTTP transport."""
 from __future__ import annotations
 
+from contextvars import ContextVar
 import json
 import logging
 import os
 import sqlite3
-from contextvars import ContextVar
 from typing import Any
 
-import uvicorn
 from mcp.server.fastmcp import Context, FastMCP
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
@@ -16,6 +15,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route
 from starlette.types import ASGIApp, Receive, Scope, Send
+import uvicorn
 
 from . import __version__
 from .auth import (

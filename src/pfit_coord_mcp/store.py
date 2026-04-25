@@ -1,13 +1,13 @@
 """SQLite-backed message store."""
 from __future__ import annotations
 
-import json
-import secrets
-import sqlite3
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from datetime import UTC, datetime
+import json
 from pathlib import Path
+import secrets
+import sqlite3
 from typing import Any
 
 SCHEMA = """

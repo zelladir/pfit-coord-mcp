@@ -1,8 +1,8 @@
 """TOML config loader for the coordination MCP server."""
 from __future__ import annotations
 
-import tomllib
 from pathlib import Path
+import tomllib
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
