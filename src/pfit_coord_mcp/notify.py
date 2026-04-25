@@ -1,4 +1,5 @@
 """Pushover notification dispatcher."""
+
 from __future__ import annotations
 
 import json
@@ -76,7 +77,11 @@ async def maybe_notify(config: Config, message_id: int) -> NotifyResult:
         body_preview = _format_body(msg["payload"])
         logger.info(
             "DRY_RUN push: kind=%s from=%s to=%s priority=%s body=%r",
-            msg["kind"], msg["from_agent"], msg["to_agent"], priority, body_preview,
+            msg["kind"],
+            msg["from_agent"],
+            msg["to_agent"],
+            priority,
+            body_preview,
         )
         mark_notified(config.server.db_path, message_id, error="dry_run")
         return NotifyResult(notified=False, reason="dry_run")

@@ -1,4 +1,5 @@
 """Notification module tests."""
+
 from __future__ import annotations
 
 import json
@@ -85,7 +86,10 @@ async def test_maybe_notify_posts_to_pushover_with_priority_1_for_stop_and_ask(
         status_code=200,
     )
     msg_id = post_message(
-        temp_db, "codex", "alex", "stop_and_ask",
+        temp_db,
+        "codex",
+        "alex",
+        "stop_and_ask",
         json.dumps({"question": "approve plan?"}),
         None,
     )
@@ -122,7 +126,9 @@ async def test_maybe_notify_marks_notified_on_4xx_to_prevent_retry_loop(
     temp_db, live_config, httpx_mock,
 ):
     httpx_mock.add_response(
-        method="POST", url=PUSHOVER_URL, status_code=400,
+        method="POST",
+        url=PUSHOVER_URL,
+        status_code=400,
         json={"status": 0, "errors": ["bad request"]},
     )
     msg_id = post_message(temp_db, "codex", "alex", "stop_and_ask", "{}", None)

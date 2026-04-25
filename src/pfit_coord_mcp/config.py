@@ -1,4 +1,5 @@
 """TOML config loader for the coordination MCP server."""
+
 from __future__ import annotations
 
 import tomllib

@@ -1,5 +1,6 @@
 """End-to-end round-trip: post stop_and_ask -> notify fires -> read as another agent -> ack
 -> reply."""
+
 from __future__ import annotations
 
 import pytest
@@ -52,8 +53,10 @@ def test_mcp_endpoint_401_bad_token(live_config):
 async def test_full_round_trip_with_real_notify(live_config, httpx_mock):
     """codex posts stop_and_ask to alex -> Pushover fires -> claude-web reads -> acks -> answers."""
     httpx_mock.add_response(
-        method="POST", url=PUSHOVER_URL,
-        json={"status": 1, "request": "ok"}, status_code=200,
+        method="POST",
+        url=PUSHOVER_URL,
+        json={"status": 1, "request": "ok"},
+        status_code=200,
     )
     mcp = build_mcp(live_config)
     posted_id: int | None = None
@@ -64,7 +67,8 @@ async def test_full_round_trip_with_real_notify(live_config, httpx_mock):
         post_fn = mcp._tool_manager._tools["coord_post"].fn
         result = await post_fn(
             CoordPostInput(
-                to_agent="alex", kind="stop_and_ask",
+                to_agent="alex",
+                kind="stop_and_ask",
                 payload={"question": "approve registry change?"},
             ),
             ctx=None,
@@ -108,7 +112,8 @@ async def test_full_round_trip_with_real_notify(live_config, httpx_mock):
         post_fn = mcp._tool_manager._tools["coord_post"].fn
         reply = await post_fn(
             CoordPostInput(
-                to_agent="codex", kind="answer",
+                to_agent="codex",
+                kind="answer",
                 payload={"text": "approved"},
             ),
             ctx=None,

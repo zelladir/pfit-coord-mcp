@@ -1,4 +1,5 @@
 """FastMCP server with bearer-auth + origin-validated streamable HTTP transport."""
+
 from __future__ import annotations
 
 import json

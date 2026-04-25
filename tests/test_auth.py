@@ -1,4 +1,5 @@
 """Auth middleware tests."""
+
 from __future__ import annotations
 
 from starlette.applications import Starlette
@@ -17,6 +18,7 @@ from pfit_coord_mcp.auth import (
 
 def _build_app(token_map: dict[str, str], allowed_origins: list[str] | None = None):
     """Tiny app that echoes the resolved agent_id from request.state."""
+
     async def echo(request: Request) -> JSONResponse:
         agent_id = getattr(request.state, AGENT_ID_STATE_KEY, None)
         return JSONResponse({"agent_id": agent_id})
@@ -74,10 +76,12 @@ def test_health_endpoint_bypasses_auth():
 
 
 def test_origin_allowed_passes():
-    client = TestClient(_build_app(
-        {"abc": "claude-web"},
-        allowed_origins=["https://mcp.asquaredhome.com"],
-    ))
+    client = TestClient(
+        _build_app(
+            {"abc": "claude-web"},
+            allowed_origins=["https://mcp.asquaredhome.com"],
+        )
+    )
     r = client.get(
         "/echo",
         headers={
@@ -89,10 +93,12 @@ def test_origin_allowed_passes():
 
 
 def test_origin_disallowed_rejected():
-    client = TestClient(_build_app(
-        {"abc": "claude-web"},
-        allowed_origins=["https://mcp.asquaredhome.com"],
-    ))
+    client = TestClient(
+        _build_app(
+            {"abc": "claude-web"},
+            allowed_origins=["https://mcp.asquaredhome.com"],
+        )
+    )
     r = client.get(
         "/echo",
         headers={
@@ -106,10 +112,12 @@ def test_origin_disallowed_rejected():
 
 def test_no_origin_header_passes_through():
     """CLI / curl / non-browser clients have no Origin and must pass."""
-    client = TestClient(_build_app(
-        {"abc": "claude-web"},
-        allowed_origins=["https://mcp.asquaredhome.com"],
-    ))
+    client = TestClient(
+        _build_app(
+            {"abc": "claude-web"},
+            allowed_origins=["https://mcp.asquaredhome.com"],
+        )
+    )
     r = client.get("/echo", headers={"Authorization": "Bearer abc"})
     assert r.status_code == 200
 

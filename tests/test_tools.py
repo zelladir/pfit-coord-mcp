@@ -1,4 +1,5 @@
 """Direct unit tests on the tool functions (contextvars set manually)."""
+
 from __future__ import annotations
 
 import json
@@ -101,18 +102,22 @@ async def test_coord_threads_create_then_list_then_close(mcp_with_config):
     token = _set_agent("codex")
     try:
         created = await _get_tool(mcp, "coord_threads")(
-            CoordThreadsInput(action="create", title="wave A"), ctx=None,
+            CoordThreadsInput(action="create", title="wave A"),
+            ctx=None,
         )
         tid = created["thread_id"]
         listed = await _get_tool(mcp, "coord_threads")(
-            CoordThreadsInput(action="list"), ctx=None,
+            CoordThreadsInput(action="list"),
+            ctx=None,
         )
         assert any(t["id"] == tid for t in listed["threads"])
         await _get_tool(mcp, "coord_threads")(
-            CoordThreadsInput(action="close", thread_id=tid), ctx=None,
+            CoordThreadsInput(action="close", thread_id=tid),
+            ctx=None,
         )
         listed_after = await _get_tool(mcp, "coord_threads")(
-            CoordThreadsInput(action="list", include_closed=False), ctx=None,
+            CoordThreadsInput(action="list", include_closed=False),
+            ctx=None,
         )
         assert all(t["id"] != tid for t in listed_after["threads"])
     finally:
@@ -125,7 +130,8 @@ async def test_coord_ack_idempotent(mcp_with_config):
     poster = _set_agent("codex")
     try:
         posted = await _get_tool(mcp, "coord_post")(
-            CoordPostInput(to_agent="alex", kind="note", payload={}), ctx=None,
+            CoordPostInput(to_agent="alex", kind="note", payload={}),
+            ctx=None,
         )
     finally:
         _current_agent.reset(poster)
@@ -146,7 +152,8 @@ async def test_coord_status_posts_to_broadcast_no_notify(mcp_with_config):
     token = _set_agent("claude-code")
     try:
         result = await _get_tool(mcp, "coord_status")(
-            CoordStatusInput(summary="working on auth packet"), ctx=None,
+            CoordStatusInput(summary="working on auth packet"),
+            ctx=None,
         )
         row = get_message(cfg.server.db_path, result["message_id"])
         assert row["to_agent"] == "broadcast"

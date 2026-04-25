@@ -1,4 +1,5 @@
 """Pydantic input/output models for MCP tool calls."""
+
 from __future__ import annotations
 
 from typing import Any, Literal

@@ -1,4 +1,5 @@
 """coord-cli: admin tool that reads and posts directly to the SQLite store."""
+
 from __future__ import annotations
 
 import json
@@ -38,8 +39,10 @@ def _render_messages(rows: list[Any]) -> None:
         try:
             payload = json.loads(r["payload"])
             payload_str = (
-                payload.get("text") or payload.get("summary")
-                or payload.get("question") or json.dumps(payload)
+                payload.get("text")
+                or payload.get("summary")
+                or payload.get("question")
+                or json.dumps(payload)
             )
         except Exception:  # any malformed payload falls through to raw
             payload_str = r["payload"]
@@ -67,8 +70,14 @@ def main() -> None:
 @click.option("--kind", "kinds", multiple=True, help="Filter by kind (repeatable).")
 @click.option("--unread", is_flag=True, help="Only unread (by --as-agent).")
 @click.option("--limit", type=int, default=50)
-def read(as_agent: str, since_id: int | None, thread_id: str | None,
-         kinds: tuple[str, ...], unread: bool, limit: int) -> None:
+def read(
+    as_agent: str,
+    since_id: int | None,
+    thread_id: str | None,
+    kinds: tuple[str, ...],
+    unread: bool,
+    limit: int,
+) -> None:
     """Read messages from the queue."""
     rows = read_messages(
         db_path=_db_path(),
@@ -129,7 +138,10 @@ def threads(include_closed: bool) -> None:
     t.add_column("closed")
     for r in rows:
         t.add_row(
-            r["id"], r["title"], r["created_by"], r["created_at"],
+            r["id"],
+            r["title"],
+            r["created_by"],
+            r["created_at"],
             "yes" if r["closed"] else "no",
         )
     console.print(t)

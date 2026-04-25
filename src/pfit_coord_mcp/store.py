@@ -1,4 +1,5 @@
 """SQLite-backed message store."""
+
 from __future__ import annotations
 
 import json
@@ -155,9 +156,9 @@ def pending_notifications(db_path: str) -> list[sqlite3.Row]:
             params.extend([kind, recipient])
     where = "(" + " OR ".join(parts) + ") AND notified_at IS NULL"
     with _connect(db_path) as conn:
-        return list(conn.execute(
-            f"SELECT * FROM messages WHERE {where} ORDER BY id ASC", params
-        ).fetchall())
+        return list(
+            conn.execute(f"SELECT * FROM messages WHERE {where} ORDER BY id ASC", params).fetchall()
+        )
 
 
 def read_messages(
@@ -195,10 +196,7 @@ def read_messages(
         )
         params.append(to_agent)
 
-    sql = (
-        "SELECT * FROM messages WHERE " + " AND ".join(clauses)
-        + " ORDER BY id ASC LIMIT ?"
-    )
+    sql = "SELECT * FROM messages WHERE " + " AND ".join(clauses) + " ORDER BY id ASC LIMIT ?"
     params.append(capped_limit)
     with _connect(db_path) as conn:
         return list(conn.execute(sql, params).fetchall())

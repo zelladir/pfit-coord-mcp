@@ -22,9 +22,6 @@ jobs:
       - name: Ruff lint
         run: python -m ruff check src tests
 
-      - name: Ruff format check (show diff)
-        run: python -m ruff format --check --diff src tests || true
-
       - name: Ruff format check
         run: python -m ruff format --check src tests
 

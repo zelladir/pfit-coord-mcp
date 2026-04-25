@@ -1,4 +1,5 @@
 """Starlette middleware: Bearer-token auth + Origin allowlist."""
+
 from __future__ import annotations
 
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
