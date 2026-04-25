@@ -133,3 +133,56 @@ def test_read_messages_default_returns_recent(temp_db):
     post_message(temp_db, "codex", "alex", "note", "{}", None)
     rows = read_messages(temp_db, to_agent="alex")
     assert len(rows) == 1
+
+
+from pfit_coord_mcp.store import ack_messages, mark_notified, pending_notifications
+
+
+def test_ack_messages_appends_agent(temp_db):
+    a = post_message(temp_db, "codex", "alex", "note", "{}", None)
+    b = post_message(temp_db, "codex", "alex", "note", "{}", None)
+    n = ack_messages(temp_db, message_ids=[a, b], by_agent="alex")
+    assert n == 2
+    row = get_message(temp_db, a)
+    assert "alex" in json.loads(row["read_by"])
+
+
+def test_ack_messages_idempotent_for_same_agent(temp_db):
+    a = post_message(temp_db, "codex", "alex", "note", "{}", None)
+    ack_messages(temp_db, [a], by_agent="alex")
+    ack_messages(temp_db, [a], by_agent="alex")
+    row = get_message(temp_db, a)
+    read_by = json.loads(row["read_by"])
+    assert read_by.count("alex") == 1
+
+
+def test_mark_notified_sets_timestamp(temp_db):
+    a = post_message(temp_db, "codex", "alex", "stop_and_ask", "{}", None)
+    mark_notified(temp_db, a, error=None)
+    row = get_message(temp_db, a)
+    assert row["notified_at"] is not None
+    assert row["notification_error"] is None
+
+
+def test_mark_notified_records_error(temp_db):
+    a = post_message(temp_db, "codex", "alex", "stop_and_ask", "{}", None)
+    mark_notified(temp_db, a, error="HTTP 429: rate limited")
+    row = get_message(temp_db, a)
+    assert row["notification_error"] == "HTTP 429: rate limited"
+    assert row["notified_at"] is not None  # still set so we don't retry
+
+
+def test_pending_notifications_returns_unnotified_eligible(temp_db):
+    """pending_notifications returns rows that match a notify rule and have no notified_at."""
+    eligible = post_message(temp_db, "codex", "alex", "stop_and_ask", "{}", None)
+    not_eligible_kind = post_message(temp_db, "codex", "alex", "status", "{}", None)
+    not_eligible_recipient = post_message(temp_db, "codex", "claude-web", "stop_and_ask", "{}", None)
+    already = post_message(temp_db, "codex", "alex", "stop_and_ask", "{}", None)
+    mark_notified(temp_db, already, error=None)
+
+    pending_ids = {r["id"] for r in pending_notifications(temp_db)}
+    assert eligible in pending_ids
+    assert not_eligible_kind not in pending_ids
+    # stop_and_ask to a non-alex recipient still triggers because rule is "stop_and_ask -> any"
+    assert not_eligible_recipient in pending_ids
+    assert already not in pending_ids

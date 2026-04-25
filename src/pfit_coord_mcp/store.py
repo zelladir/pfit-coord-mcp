@@ -101,6 +101,63 @@ def get_message(db_path: str, message_id: int) -> sqlite3.Row | None:
         return row
 
 
+def ack_messages(db_path: str, message_ids: Sequence[int], by_agent: str) -> int:
+    """Append `by_agent` to each message's `read_by` JSON array. Idempotent."""
+    if not message_ids:
+        return 0
+    with _connect(db_path) as conn:
+        n = 0
+        for mid in message_ids:
+            row = conn.execute("SELECT read_by FROM messages WHERE id = ?", (mid,)).fetchone()
+            if row is None:
+                continue
+            existing = json.loads(row["read_by"])
+            if by_agent not in existing:
+                existing.append(by_agent)
+                conn.execute(
+                    "UPDATE messages SET read_by = ? WHERE id = ?",
+                    (json.dumps(existing), mid),
+                )
+            n += 1
+        return n
+
+
+def mark_notified(db_path: str, message_id: int, error: str | None) -> None:
+    """Set notified_at = now and record any error string."""
+    with _connect(db_path) as conn:
+        conn.execute(
+            "UPDATE messages SET notified_at = ?, notification_error = ? WHERE id = ?",
+            (_now_iso(), error, message_id),
+        )
+
+
+# Server-enforced notification rules. (kind, recipient_predicate) -> priority
+NOTIFY_KIND_RULES = {
+    "stop_and_ask": "*",      # any recipient
+    "handoff":      "alex",   # only when addressed to alex
+    "task_complete": "alex",
+    "question":     "alex",
+}
+
+
+def pending_notifications(db_path: str) -> list[sqlite3.Row]:
+    """Return messages eligible for notification (not yet notified)."""
+    parts: list[str] = []
+    params: list[Any] = []
+    for kind, recipient in NOTIFY_KIND_RULES.items():
+        if recipient == "*":
+            parts.append("kind = ?")
+            params.append(kind)
+        else:
+            parts.append("(kind = ? AND to_agent = ?)")
+            params.extend([kind, recipient])
+    where = "(" + " OR ".join(parts) + ") AND notified_at IS NULL"
+    with _connect(db_path) as conn:
+        return list(conn.execute(
+            f"SELECT * FROM messages WHERE {where} ORDER BY id ASC", params
+        ).fetchall())
+
+
 def read_messages(
     db_path: str,
     to_agent: str,
