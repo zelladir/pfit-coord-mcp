@@ -140,10 +140,47 @@ async def test_maybe_notify_marks_notified_on_4xx_to_prevent_retry_loop(
     msg_id = post_message(temp_db, "codex", "alex", "stop_and_ask", "{}", None)
     result = await maybe_notify(live_config, msg_id)
     assert result.notified is False
-    assert result.error is not None
+    assert result.error == "pushover_http_400"
     row = get_message(temp_db, msg_id)
     assert row["notified_at"] is not None  # set so we don't retry
-    assert "400" in (row["notification_error"] or "")
+    assert row["notification_error"] == "pushover_http_400"
+
+
+@pytest.mark.asyncio
+async def test_maybe_notify_does_not_store_pushover_error_body(
+    temp_db,
+    live_config,
+    httpx_mock,
+):
+    httpx_mock.add_response(
+        method="POST",
+        url=PUSHOVER_URL,
+        status_code=400,
+        json={"status": 0, "errors": ["user u-test is invalid"]},
+    )
+    msg_id = post_message(temp_db, "codex", "alex", "stop_and_ask", "{}", None)
+    result = await maybe_notify(live_config, msg_id)
+    row = get_message(temp_db, msg_id)
+    assert result.error == "pushover_http_400"
+    assert "u-test" not in (row["notification_error"] or "")
+
+
+@pytest.mark.asyncio
+async def test_maybe_notify_treats_status_zero_as_failure(
+    temp_db,
+    live_config,
+    httpx_mock,
+):
+    httpx_mock.add_response(
+        method="POST",
+        url=PUSHOVER_URL,
+        status_code=200,
+        json={"status": 0, "errors": ["bad user"]},
+    )
+    msg_id = post_message(temp_db, "codex", "alex", "stop_and_ask", "{}", None)
+    result = await maybe_notify(live_config, msg_id)
+    assert result.notified is False
+    assert result.error == "pushover_status_not_1"
 
 
 @pytest.mark.asyncio
