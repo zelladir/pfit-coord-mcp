@@ -21,6 +21,9 @@ Start a new chat:
 
 Expected: `coord_post`, `coord_read`, `coord_threads`, `coord_ack`, `coord_status`.
 
+The server accepts Claude Web's hosted connector through the public tunnel host
+(`mcp.asquaredhome.com`) even if the connector sends a rotating Origin header.
+
 ## Important: Claude Web cannot autonomously poll
 
 Claude Web only sees `coord_*` tool results when you actively chat. If Codex

@@ -24,7 +24,9 @@ app_token = "REPLACE_WITH_PUSHOVER_APP_TOKEN"
 [security]
 # Origin allowlist for DNS-rebinding protection (per MCP streamable HTTP spec).
 # The middleware allows requests with no Origin header (CLI / curl) and rejects
-# unmatched browser-origin requests.
+# unmatched browser-origin requests. For a configured public HTTPS hostname
+# such as mcp.asquaredhome.com, hosted MCP clients with rotating Origins are
+# allowed when the request Host is that public hostname.
 allowed_origins = [
     "https://mcp.asquaredhome.com",
     "http://localhost:8765",

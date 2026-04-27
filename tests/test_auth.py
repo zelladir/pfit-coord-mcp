@@ -39,6 +39,7 @@ def test_missing_authorization_returns_401():
     r = client.get("/echo")
     assert r.status_code == 401
     assert r.json()["error"] == "unauthorized"
+    assert r.json()["message"] == "Unauthorized"
 
 
 def test_malformed_authorization_returns_401():
@@ -51,6 +52,7 @@ def test_unknown_token_returns_401():
     client = TestClient(_build_app({"abc": "claude-web"}))
     r = client.get("/echo", headers={"Authorization": "Bearer not-a-real-token"})
     assert r.status_code == 401
+    assert r.json() == {"error": "unauthorized", "message": "Unauthorized"}
 
 
 def test_valid_token_attaches_agent_id():
@@ -58,6 +60,32 @@ def test_valid_token_attaches_agent_id():
     r = client.get("/echo", headers={"Authorization": "Bearer abc"})
     assert r.status_code == 200
     assert r.json() == {"agent_id": "claude-web"}
+
+
+def test_token_comparison_uses_compare_digest(monkeypatch):
+    calls: list[tuple[str, str]] = []
+
+    def fake_compare_digest(a: str, b: str) -> bool:
+        calls.append((a, b))
+        return a == b
+
+    monkeypatch.setattr("pfit_coord_mcp.auth.secrets.compare_digest", fake_compare_digest)
+    client = TestClient(_build_app({"abc": "claude-web"}))
+    r = client.get("/echo", headers={"Authorization": "Bearer abc"})
+    assert r.status_code == 200
+    assert calls == [("abc", "abc")]
+
+
+def test_query_string_token_is_not_accepted():
+    client = TestClient(_build_app({"abc": "claude-web"}))
+    r = client.get("/echo?access_token=abc")
+    assert r.status_code == 401
+
+
+def test_authorization_with_extra_spaces_rejected():
+    client = TestClient(_build_app({"abc": "claude-web"}))
+    assert client.get("/echo", headers={"Authorization": "Bearer  abc"}).status_code == 401
+    assert client.get("/echo", headers={"Authorization": "Bearer abc "}).status_code == 401
 
 
 def test_health_endpoint_bypasses_auth():
@@ -107,7 +135,43 @@ def test_origin_disallowed_rejected():
         },
     )
     assert r.status_code == 403
-    assert r.json()["error"] == "forbidden_origin"
+    assert r.json() == {"error": "forbidden_origin", "message": "Origin not allowed"}
+
+
+def test_origin_from_hosted_client_allowed_for_public_tunnel_host():
+    client = TestClient(
+        _build_app(
+            {"abc": "claude-web"},
+            allowed_origins=["https://mcp.asquaredhome.com", "http://localhost:8765"],
+        )
+    )
+    r = client.get(
+        "/echo",
+        headers={
+            "Authorization": "Bearer abc",
+            "Host": "mcp.asquaredhome.com",
+            "Origin": "https://claude.ai",
+        },
+    )
+    assert r.status_code == 200
+
+
+def test_unmatched_origin_still_rejected_for_localhost():
+    client = TestClient(
+        _build_app(
+            {"abc": "claude-web"},
+            allowed_origins=["https://mcp.asquaredhome.com", "http://localhost:8765"],
+        )
+    )
+    r = client.get(
+        "/echo",
+        headers={
+            "Authorization": "Bearer abc",
+            "Host": "localhost:8765",
+            "Origin": "https://attacker.example.com",
+        },
+    )
+    assert r.status_code == 403
 
 
 def test_no_origin_header_passes_through():
