@@ -74,6 +74,14 @@ curl http://localhost:8765/health
 # See docs/cloudflare-tunnel.md
 ```
 
+## Deployment
+
+The reference deployment runs on an always-on Linux host (codeserver) and
+exposes the server via Cloudflare Tunnel and an internal reverse proxy. The
+container's port binding is `0.0.0.0:8765` to support this topology.
+Bearer-token authentication is the security boundary. See
+`docs/deployment-architecture.md` for the full picture and the rationale.
+
 ## Setup docs
 
 - [Claude Code](docs/claude-code-setup.md)
