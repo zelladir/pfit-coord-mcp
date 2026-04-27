@@ -25,6 +25,7 @@ htmlcov/
 !.env.example
 config.toml
 !config.toml.example
+scratch-tokens.txt
 
 # SQLite database files
 data/*.db
