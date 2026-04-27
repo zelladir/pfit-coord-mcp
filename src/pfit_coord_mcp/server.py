@@ -11,6 +11,8 @@ from typing import Any
 
 import uvicorn
 from mcp.server.fastmcp import Context, FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
+from mcp.types import ToolAnnotations
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.requests import Request
@@ -87,9 +89,22 @@ def _require_agent_id() -> str:
 
 def build_mcp(config: Config) -> FastMCP:
     """Build a FastMCP instance with the five coord_* tools registered."""
-    mcp = FastMCP("pfit_coord_mcp")
+    mcp = FastMCP(
+        "pfit_coord_mcp",
+        # OriginAllowlistMiddleware owns the host/origin policy so Claude Web's
+        # hosted connector can use rotating Origin values through the tunnel.
+        transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
+    )
 
-    @mcp.tool(name="coord_post")
+    @mcp.tool(
+        name="coord_post",
+        annotations=ToolAnnotations(
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=False,
+            openWorldHint=False,
+        ),
+    )
     async def coord_post(
         params: CoordPostInput,
         ctx: Context,  # type: ignore[type-arg]
@@ -122,38 +137,57 @@ def build_mcp(config: Config) -> FastMCP:
             "notification_error": result.error,
         }
 
-    @mcp.tool(name="coord_read")
+    @mcp.tool(
+        name="coord_read",
+        annotations=ToolAnnotations(
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
+    )
     async def coord_read(
         params: CoordReadInput,
         ctx: Context,  # type: ignore[type-arg]
     ) -> dict[str, Any]:
-        """Read messages addressed to your agent ID (or to broadcast).
+        """Read the shared coordination queue.
 
-        Defaults: most recent 50 messages. Use `since_id` to poll for new ones.
-        Use `thread_id` to read a single thread, `kinds` to filter, `unread_only`
-        to skip messages your agent has already acked.
+        The `to_agent` field is a routing hint, not an access-control boundary:
+        authenticated agents can read direct, Alex-addressed, and broadcast
+        messages. Defaults: most recent 50 messages. Use `since_id` to poll for
+        new ones. Use `thread_id` to read a single thread, `kinds` to filter,
+        `unread_only` to skip messages your agent has already acked.
         """
         agent_id = _require_agent_id()
         rows = read_messages(
             db_path=config.server.db_path,
-            to_agent=agent_id,
+            to_agent=None,
             since_id=params.since_id,
             thread_id=params.thread_id,
             kinds=params.kinds,
             unread_only=params.unread_only,
             limit=params.limit,
+            read_by_agent=agent_id,
         )
         return {
             "messages": [_row_to_dict(r) for r in rows],
             "count": len(rows),
         }
 
-    @mcp.tool(name="coord_threads")
+    @mcp.tool(
+        name="coord_threads",
+        annotations=ToolAnnotations(
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=False,
+            openWorldHint=False,
+        ),
+    )
     async def coord_threads_tool(
         params: CoordThreadsInput,
         ctx: Context,  # type: ignore[type-arg]
     ) -> dict[str, Any]:
-        """Manage coordination threads (create / list / close)."""
+        """Manage coordination threads: create, list, or close a coordination thread."""
         agent_id = _require_agent_id()
         if params.action == "create":
             if not params.title:
@@ -170,7 +204,15 @@ def build_mcp(config: Config) -> FastMCP:
             return {"closed": params.thread_id}
         raise ValueError(f"unknown action: {params.action}")
 
-    @mcp.tool(name="coord_ack")
+    @mcp.tool(
+        name="coord_ack",
+        annotations=ToolAnnotations(
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
+    )
     async def coord_ack(
         params: CoordAckInput,
         ctx: Context,  # type: ignore[type-arg]
@@ -180,7 +222,15 @@ def build_mcp(config: Config) -> FastMCP:
         n = ack_messages(config.server.db_path, params.message_ids, by_agent=agent_id)
         return {"acked": n}
 
-    @mcp.tool(name="coord_status")
+    @mcp.tool(
+        name="coord_status",
+        annotations=ToolAnnotations(
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=False,
+            openWorldHint=False,
+        ),
+    )
     async def coord_status(
         params: CoordStatusInput,
         ctx: Context,  # type: ignore[type-arg]
@@ -228,13 +278,14 @@ def build_app(config: Config) -> Starlette:
     return Starlette(
         routes=[
             Route(HEALTH_PATH, health),
-            Mount("/mcp", app=mcp_asgi),
+            Mount("/", app=mcp_asgi),
         ],
         middleware=[
             Middleware(OriginAllowlistMiddleware, allowed_origins=config.allowed_origins),
             Middleware(BearerTokenMiddleware, token_map=config.tokens),
             Middleware(AgentContextMiddleware),
         ],
+        lifespan=lambda app: mcp.session_manager.run(),
     )
 
 

@@ -163,21 +163,25 @@ def pending_notifications(db_path: str) -> list[sqlite3.Row]:
 
 def read_messages(
     db_path: str,
-    to_agent: str,
+    to_agent: str | None = None,
     since_id: int | None = None,
     thread_id: str | None = None,
     kinds: Sequence[str] | None = None,
     unread_only: bool = False,
     limit: int = 50,
+    read_by_agent: str | None = None,
 ) -> list[sqlite3.Row]:
-    """Return messages addressed to `to_agent` (or to broadcast).
+    """Return messages from the queue, optionally filtered to one recipient.
 
     Filters compose with AND. `unread_only` excludes rows whose `read_by` JSON
-    array already contains `to_agent`.
+    array already contains `read_by_agent` (or `to_agent` when omitted).
     """
     capped_limit = min(max(limit, 1), 200)
-    clauses = ["(to_agent = ? OR to_agent = ?)"]
-    params: list[Any] = [to_agent, RECIPIENT_BROADCAST]
+    clauses: list[str] = []
+    params: list[Any] = []
+    if to_agent is not None:
+        clauses.append("(to_agent = ? OR to_agent = ?)")
+        params.extend([to_agent, RECIPIENT_BROADCAST])
     if since_id is not None:
         clauses.append("id > ?")
         params.append(since_id)
@@ -189,12 +193,18 @@ def read_messages(
         clauses.append(f"kind IN ({placeholders})")
         params.extend(kinds)
     if unread_only:
+        ack_agent = read_by_agent or to_agent
+        if ack_agent is None:
+            raise ValueError("read_by_agent is required when unread_only=True without to_agent")
         # SQLite JSON1 — `json_each(read_by)` exposes the array elements;
-        # the NOT EXISTS keeps rows where to_agent is not yet in the array.
+        # the NOT EXISTS keeps rows where the reader is not yet in the array.
         clauses.append("NOT EXISTS (SELECT 1 FROM json_each(read_by) WHERE value = ?)")
-        params.append(to_agent)
+        params.append(ack_agent)
 
-    sql = "SELECT * FROM messages WHERE " + " AND ".join(clauses) + " ORDER BY id ASC LIMIT ?"
+    sql = "SELECT * FROM messages"
+    if clauses:
+        sql += " WHERE " + " AND ".join(clauses)
+    sql += " ORDER BY id ASC LIMIT ?"
     params.append(capped_limit)
     with _connect(db_path) as conn:
         return list(conn.execute(sql, params).fetchall())
