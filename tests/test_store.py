@@ -103,6 +103,24 @@ def test_read_messages_filters_by_to_agent(temp_db):
     assert "claude-web" not in to_targets
 
 
+def test_read_messages_without_to_agent_returns_shared_queue(temp_db):
+    post_message(temp_db, "codex", "alex", "note", "{}", None)
+    post_message(temp_db, "codex", "claude-web", "note", "{}", None)
+    post_message(temp_db, "codex", "broadcast", "status", "{}", None)
+    rows = read_messages(temp_db, to_agent=None)
+    assert {r["to_agent"] for r in rows} == {"alex", "claude-web", "broadcast"}
+
+
+def test_read_messages_unread_only_uses_read_by_agent_for_shared_queue(temp_db):
+    first = post_message(temp_db, "codex", "alex", "note", "{}", None)
+    second = post_message(temp_db, "codex", "claude-web", "note", "{}", None)
+    ack_messages(temp_db, [first], by_agent="claude-web")
+    rows = read_messages(temp_db, to_agent=None, unread_only=True, read_by_agent="claude-web")
+    ids = {r["id"] for r in rows}
+    assert first not in ids
+    assert second in ids
+
+
 def test_read_messages_since_id_excludes_lower_or_equal(temp_db):
     a = post_message(temp_db, "codex", "alex", "note", "{}", None)
     b = post_message(temp_db, "codex", "alex", "note", "{}", None)

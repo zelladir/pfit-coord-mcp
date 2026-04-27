@@ -32,7 +32,7 @@ phone via Pushover.
 Five MCP tools:
 
 - `coord_post` — post a message addressed to one of the agents (or `broadcast`)
-- `coord_read` — read messages addressed to your agent ID + broadcast
+- `coord_read` — read the shared queue; `to_agent` is a routing hint
 - `coord_threads` — create / list / close coordination threads
 - `coord_ack` — mark messages as read
 - `coord_status` — lightweight status heartbeat (broadcast, no notification)
@@ -58,6 +58,7 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"  # x3
 
 # 2. Copy + edit config
 cp config.toml.example config.toml
+chmod 600 config.toml  # macOS/Linux; keep this file user-only on Windows.
 # Paste tokens into [tokens] (replace REPLACE_WITH_GENERATED_TOKEN_*)
 # Paste your Pushover user_key + app_token into [pushover]
 # (If creds are empty, server auto-forces dry_run=true.)
@@ -101,6 +102,8 @@ coord-cli thread-create --title "wave A"        # create
   client identity). The `alex` identity is recipient-only — humans don't auth
   to the MCP; Alex reads via the CLI.
 - **DNS-rebinding defense:** Origin allowlist middleware (per MCP spec MUST).
+  Public tunnel traffic is trusted by the requested host, while local browser
+  requests still require an exact Origin match.
 - **Store:** SQLite WAL mode at `./data/coord.db`. Backup is "copy the file."
   No replication. If the DB dies, you've lost a coordination log, not real work.
 - **Notifications:** Server-enforced rules dispatch via Pushover. Each message

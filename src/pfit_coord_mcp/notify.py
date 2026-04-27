@@ -101,9 +101,26 @@ async def maybe_notify(config: Config, message_id: int) -> NotifyResult:
                 },
             )
             r.raise_for_status()
+            if r.json().get("status") != 1:
+                error = "pushover_status_not_1"
+                logger.warning("Pushover request failed with non-success status field")
+                mark_notified(config.server.db_path, message_id, error=error)
+                return NotifyResult(notified=False, error=error, reason="push_failed")
+    except httpx.HTTPStatusError as e:
+        error = f"pushover_http_{e.response.status_code}"
+        logger.warning("Pushover request failed with HTTP %s", e.response.status_code)
+        mark_notified(config.server.db_path, message_id, error=error)
+        return NotifyResult(notified=False, error=error, reason="push_failed")
+    except httpx.RequestError as e:
+        error = f"pushover_request_error:{e.__class__.__name__}"
+        logger.warning("Pushover request failed with request error %s", e.__class__.__name__)
+        mark_notified(config.server.db_path, message_id, error=error)
+        return NotifyResult(notified=False, error=error, reason="push_failed")
     except Exception as e:
-        mark_notified(config.server.db_path, message_id, error=str(e))
-        return NotifyResult(notified=False, error=str(e), reason="push_failed")
+        error = f"pushover_error:{e.__class__.__name__}"
+        logger.warning("Pushover request failed with unexpected error %s", e.__class__.__name__)
+        mark_notified(config.server.db_path, message_id, error=error)
+        return NotifyResult(notified=False, error=error, reason="push_failed")
 
     mark_notified(config.server.db_path, message_id, error=None)
     return NotifyResult(notified=True)

@@ -84,13 +84,10 @@ async def test_full_round_trip_with_real_notify(live_config, httpx_mock):
     body = dict(kv.split("=", 1) for kv in pushover_request.content.decode().split("&"))
     assert body["priority"] == "1"
 
-    # 2) alex reads (alex is a recipient identity; this exercises the route-by-recipient logic)
-    token = _current_agent.set("alex")
+    # 2) claude-web reads the shared queue and sees the message addressed to alex.
+    token = _current_agent.set("claude-web")
     try:
         read_fn = mcp._tool_manager._tools["coord_read"].fn
-        # NOTE: alex doesn't have a bearer token at the MCP layer — it's a recipient
-        # identity. The CLI reads alex's messages directly from SQLite. Reading via
-        # the tool here exercises the route-by-recipient logic regardless.
         result = await read_fn(CoordReadInput(), ctx=None)
         assert any(m["id"] == posted_id for m in result["messages"]), (
             f"expected posted message in alex's queue; got {result}"
@@ -98,8 +95,8 @@ async def test_full_round_trip_with_real_notify(live_config, httpx_mock):
     finally:
         _current_agent.reset(token)
 
-    # 3) ack as alex
-    token = _current_agent.set("alex")
+    # 3) ack as claude-web
+    token = _current_agent.set("claude-web")
     try:
         ack_fn = mcp._tool_manager._tools["coord_ack"].fn
         ack_result = await ack_fn(CoordAckInput(message_ids=[posted_id]), ctx=None)

@@ -5,9 +5,11 @@ from __future__ import annotations
 import json
 
 import pytest
+from pydantic import ValidationError
 from starlette.testclient import TestClient
 
 from pfit_coord_mcp.models import (
+    MAX_PAYLOAD_BYTES,
     CoordAckInput,
     CoordPostInput,
     CoordReadInput,
@@ -72,7 +74,7 @@ async def test_coord_post_stop_and_ask_triggers_dry_run_notify(mcp_with_config):
 
 
 @pytest.mark.asyncio
-async def test_coord_read_returns_recipient_and_broadcast(mcp_with_config):
+async def test_coord_read_returns_shared_queue(mcp_with_config):
     mcp, _ = mcp_with_config
     # codex posts: one to alex, one to broadcast, one to claude-web
     poster = _set_agent("codex")
@@ -91,7 +93,7 @@ async def test_coord_read_returns_recipient_and_broadcast(mcp_with_config):
         targets = [m["to_agent"] for m in result["messages"]]
         assert "alex" in targets
         assert "broadcast" in targets
-        assert "claude-web" not in targets
+        assert "claude-web" in targets
     finally:
         _current_agent.reset(reader)
 
@@ -178,3 +180,83 @@ def test_mcp_endpoint_requires_auth(temp_config):
     client = TestClient(app)
     r = client.post("/mcp", json={})
     assert r.status_code == 401
+
+
+def test_mcp_endpoint_accepts_initialize_at_documented_path(temp_config):
+    app = build_app(temp_config)
+    with TestClient(app, base_url="http://localhost:8765") as client:
+        r = client.post(
+            "/mcp",
+            headers={
+                "Authorization": "Bearer test-token-codex",
+                "Accept": "application/json, text/event-stream",
+            },
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-06-18",
+                    "capabilities": {},
+                    "clientInfo": {"name": "pytest", "version": "0"},
+                },
+            },
+        )
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith(("application/json", "text/event-stream"))
+
+
+def test_mcp_endpoint_allows_hosted_origin_through_public_host(temp_config):
+    app = build_app(temp_config)
+    with TestClient(app, base_url="https://mcp.asquaredhome.com") as client:
+        r = client.post(
+            "/mcp",
+            headers={
+                "Authorization": "Bearer test-token-codex",
+                "Accept": "application/json, text/event-stream",
+                "Origin": "https://claude.ai",
+            },
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-06-18",
+                    "capabilities": {},
+                    "clientInfo": {"name": "pytest", "version": "0"},
+                },
+            },
+        )
+    assert r.status_code == 200
+
+
+def test_tool_annotations_are_security_accurate(temp_config):
+    mcp = build_mcp(temp_config)
+    assert mcp._tool_manager._tools["coord_read"].annotations.readOnlyHint is True
+    assert mcp._tool_manager._tools["coord_post"].annotations.readOnlyHint is False
+    assert mcp._tool_manager._tools["coord_ack"].annotations.readOnlyHint is False
+    assert mcp._tool_manager._tools["coord_status"].annotations.readOnlyHint is False
+    assert mcp._tool_manager._tools["coord_threads"].annotations.destructiveHint is True
+
+
+def test_coord_post_payload_rejects_over_64kb():
+    payload = {"text": "x" * MAX_PAYLOAD_BYTES}
+    with pytest.raises(ValidationError, match="payload serialized JSON"):
+        CoordPostInput(to_agent="alex", kind="note", payload=payload)
+
+
+def test_thread_id_rejects_long_or_unsafe_values():
+    with pytest.raises(ValidationError):
+        CoordPostInput(to_agent="alex", kind="note", payload={}, thread_id="bad/thread")
+    with pytest.raises(ValidationError):
+        CoordStatusInput(summary="ok", thread_id="t" * 201)
+
+
+def test_coord_read_limit_is_schema_capped():
+    with pytest.raises(ValidationError):
+        CoordReadInput(limit=201)
+
+
+def test_coord_threads_title_is_capped():
+    with pytest.raises(ValidationError):
+        CoordThreadsInput(action="create", title="x" * 201)
