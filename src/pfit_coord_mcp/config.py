@@ -72,13 +72,11 @@ def load_config(path: str | Path) -> Config:
         k: OAuthClientConfig(**v)
         for k, v in oauth_raw.get("clients", {}).items()
     }
+    oauth_raw_clean = {k: v for k, v in oauth_raw.items() if k != "clients"}
     return Config(
         server=ServerConfig(**raw.get("server", {})),
         tokens=raw.get("tokens", {}),
         pushover=PushoverConfig(**raw.get("pushover", {})),
         allowed_origins=raw.get("security", {}).get("allowed_origins", []),
-        oauth=OAuthConfig(
-            token_ttl_seconds=oauth_raw.get("token_ttl_seconds", 86400),
-            clients=oauth_clients,
-        ),
+        oauth=OAuthConfig(clients=oauth_clients, **oauth_raw_clean),
     )
