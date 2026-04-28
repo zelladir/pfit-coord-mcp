@@ -20,6 +20,7 @@ UNAUTHORIZED_RESPONSE = {"error": "unauthorized", "message": "Unauthorized"}
 OAUTH_PUBLIC_PATHS = frozenset({
     "/.well-known/oauth-protected-resource",
     "/.well-known/oauth-authorization-server",
+    "/authorize",
     "/token",
     "/register",
 })

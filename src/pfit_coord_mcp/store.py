@@ -49,6 +49,17 @@ CREATE TABLE IF NOT EXISTS oauth_access_tokens (
     created_at TEXT NOT NULL,
     expires_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS oauth_auth_codes (
+    code         TEXT PRIMARY KEY,
+    client_id    TEXT NOT NULL,
+    agent_id     TEXT NOT NULL,
+    code_challenge TEXT NOT NULL,
+    redirect_uri TEXT NOT NULL,
+    created_at   TEXT NOT NULL,
+    expires_at   TEXT NOT NULL,
+    used         INTEGER NOT NULL DEFAULT 0
+);
 """
 
 
@@ -272,3 +283,35 @@ def lookup_oauth_token(db_path: str, token: str) -> sqlite3.Row | None:
             "SELECT * FROM oauth_access_tokens WHERE token = ? AND expires_at > ?",
             (token, _now_iso()),
         ).fetchone()
+
+
+def store_auth_code(
+    db_path: str,
+    code: str,
+    client_id: str,
+    agent_id: str,
+    code_challenge: str,
+    redirect_uri: str,
+    expires_at: str,
+) -> None:
+    """Store a single-use OAuth authorization code."""
+    with _connect(db_path) as conn:
+        conn.execute(
+            "INSERT INTO oauth_auth_codes"
+            " (code, client_id, agent_id, code_challenge, redirect_uri, created_at, expires_at, used)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, 0)",
+            (code, client_id, agent_id, code_challenge, redirect_uri, _now_iso(), expires_at),
+        )
+
+
+def consume_auth_code(db_path: str, code: str) -> sqlite3.Row | None:
+    """Atomically mark the auth code as used and return it, or None if missing/expired/used."""
+    with _connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT * FROM oauth_auth_codes WHERE code = ? AND used = 0 AND expires_at > ?",
+            (code, _now_iso()),
+        ).fetchone()
+        if row is None:
+            return None
+        conn.execute("UPDATE oauth_auth_codes SET used = 1 WHERE code = ?", (code,))
+        return row
