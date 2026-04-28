@@ -13,7 +13,9 @@ from pfit_coord_mcp.auth import (
     AGENT_ID_STATE_KEY,
     BearerTokenMiddleware,
     OriginAllowlistMiddleware,
+    OAUTH_PUBLIC_PATHS,
 )
+from pfit_coord_mcp.store import init_db, store_oauth_token
 
 
 def _build_app(token_map: dict[str, str], allowed_origins: list[str] | None = None):
@@ -207,3 +209,72 @@ def test_agent_id_propagates_to_scope_top_level():
     client = TestClient(app)
     client.get("/grab", headers={"Authorization": "Bearer abc"})
     assert seen["scope_agent"] == "claude-web"
+
+
+def _build_app_with_db(
+    token_map: dict[str, str],
+    db_path: str,
+    allowed_origins: list[str] | None = None,
+):
+    """Like _build_app but passes db_path to BearerTokenMiddleware."""
+
+    async def echo(request: Request) -> JSONResponse:
+        agent_id = getattr(request.state, AGENT_ID_STATE_KEY, None)
+        return JSONResponse({"agent_id": agent_id})
+
+    middleware = []
+    if allowed_origins is not None:
+        middleware.append(Middleware(OriginAllowlistMiddleware, allowed_origins=allowed_origins))
+    middleware.append(Middleware(BearerTokenMiddleware, token_map=token_map, db_path=db_path))
+    return Starlette(routes=[Route("/", echo), Route("/health", echo)], middleware=middleware)
+
+
+def test_oauth_public_paths_are_defined():
+    assert "/.well-known/oauth-protected-resource" in OAUTH_PUBLIC_PATHS
+    assert "/.well-known/oauth-authorization-server" in OAUTH_PUBLIC_PATHS
+    assert "/token" in OAUTH_PUBLIC_PATHS
+    assert "/register" in OAUTH_PUBLIC_PATHS
+
+
+def test_bearer_bypasses_oauth_paths(tmp_path):
+    db = str(tmp_path / "t.db")
+    init_db(db)
+    app = _build_app_with_db({"tok": "claude-code"}, db_path=db)
+    client = TestClient(app, raise_server_exceptions=False)
+    for path in ["/.well-known/oauth-protected-resource", "/token", "/register"]:
+        r = client.get(path)
+        assert r.status_code != 401, f"{path} returned 401 — should bypass auth"
+
+
+def test_origin_middleware_bypasses_oauth_paths():
+    app = Starlette(
+        routes=[Route("/.well-known/oauth-authorization-server", lambda r: JSONResponse({}))],
+        middleware=[Middleware(OriginAllowlistMiddleware, allowed_origins=["https://example.com"])],
+    )
+    client = TestClient(app)
+    r = client.get(
+        "/.well-known/oauth-authorization-server",
+        headers={"Origin": "https://untrusted.example"},
+    )
+    assert r.status_code != 403
+
+
+def test_bearer_accepts_oauth_token(tmp_path):
+    db = str(tmp_path / "t.db")
+    init_db(db)
+    store_oauth_token(db, "oat_test123", "ccw_test", "claude-web", "2099-01-01T00:00:00+00:00")
+    app = _build_app_with_db({}, db_path=db)
+    client = TestClient(app)
+    r = client.get("/", headers={"Authorization": "Bearer oat_test123"})
+    assert r.status_code == 200
+    assert r.json()["agent_id"] == "claude-web"
+
+
+def test_bearer_rejects_expired_oauth_token(tmp_path):
+    db = str(tmp_path / "t.db")
+    init_db(db)
+    store_oauth_token(db, "oat_expired", "ccw_test", "claude-web", "2000-01-01T00:00:00+00:00")
+    app = _build_app_with_db({}, db_path=db)
+    client = TestClient(app)
+    r = client.get("/", headers={"Authorization": "Bearer oat_expired"})
+    assert r.status_code == 401
