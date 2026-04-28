@@ -13,7 +13,9 @@ from pfit_coord_mcp.auth import (
     AGENT_ID_STATE_KEY,
     BearerTokenMiddleware,
     OriginAllowlistMiddleware,
+    OAUTH_PUBLIC_PATHS,
 )
+from pfit_coord_mcp.store import init_db, store_oauth_token
 
 
 def _build_app(token_map: dict[str, str], allowed_origins: list[str] | None = None):
@@ -225,10 +227,6 @@ def _build_app_with_db(
         middleware.append(Middleware(OriginAllowlistMiddleware, allowed_origins=allowed_origins))
     middleware.append(Middleware(BearerTokenMiddleware, token_map=token_map, db_path=db_path))
     return Starlette(routes=[Route("/", echo), Route("/health", echo)], middleware=middleware)
-
-
-from pfit_coord_mcp.auth import OAUTH_PUBLIC_PATHS
-from pfit_coord_mcp.store import init_db, store_oauth_token
 
 
 def test_oauth_public_paths_are_defined():
