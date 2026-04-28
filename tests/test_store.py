@@ -8,6 +8,7 @@ import sqlite3
 from pfit_coord_mcp.store import (
     ack_messages,
     close_thread,
+    consume_auth_code,
     create_thread,
     get_message,
     init_db,
@@ -17,6 +18,7 @@ from pfit_coord_mcp.store import (
     pending_notifications,
     post_message,
     read_messages,
+    store_auth_code,
     store_oauth_token,
 )
 
@@ -263,3 +265,52 @@ def test_init_db_creates_oauth_table(tmp_path):
     tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     conn.close()
     assert "oauth_access_tokens" in tables
+
+
+def test_store_and_consume_auth_code(tmp_path):
+    db = str(tmp_path / "t.db")
+    init_db(db)
+    store_auth_code(
+        db, code="ac_test123", client_id="ccw_test", agent_id="claude-web",
+        code_challenge="abc123challenge", redirect_uri="https://claude.ai/api/mcp/auth_callback",
+        expires_at="2099-01-01T00:00:00+00:00",
+    )
+    row = consume_auth_code(db, "ac_test123")
+    assert row is not None
+    assert row["client_id"] == "ccw_test"
+    assert row["agent_id"] == "claude-web"
+    assert row["code_challenge"] == "abc123challenge"
+    assert row["redirect_uri"] == "https://claude.ai/api/mcp/auth_callback"
+
+
+def test_consume_auth_code_is_single_use(tmp_path):
+    db = str(tmp_path / "t.db")
+    init_db(db)
+    store_auth_code(db, code="ac_once", client_id="ccw_test", agent_id="claude-web",
+        code_challenge="xyz", redirect_uri="https://example.com/cb", expires_at="2099-01-01T00:00:00+00:00")
+    assert consume_auth_code(db, "ac_once") is not None
+    assert consume_auth_code(db, "ac_once") is None
+
+
+def test_consume_expired_auth_code(tmp_path):
+    db = str(tmp_path / "t.db")
+    init_db(db)
+    store_auth_code(db, code="ac_expired", client_id="ccw_test", agent_id="claude-web",
+        code_challenge="xyz", redirect_uri="https://example.com/cb", expires_at="2000-01-01T00:00:00+00:00")
+    assert consume_auth_code(db, "ac_expired") is None
+
+
+def test_consume_missing_auth_code(tmp_path):
+    db = str(tmp_path / "t.db")
+    init_db(db)
+    assert consume_auth_code(db, "ac_nonexistent") is None
+
+
+def test_init_db_creates_auth_codes_table(tmp_path):
+    db = str(tmp_path / "t.db")
+    init_db(db)
+    import sqlite3 as _sqlite3
+    conn = _sqlite3.connect(db)
+    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    conn.close()
+    assert "oauth_auth_codes" in tables
