@@ -21,11 +21,22 @@ class PushoverConfig(BaseModel):
     app_token: str = ""
 
 
+class OAuthClientConfig(BaseModel):
+    secret: str
+    agent_id: str
+
+
+class OAuthConfig(BaseModel):
+    token_ttl_seconds: int = 86400
+    clients: dict[str, OAuthClientConfig] = Field(default_factory=dict)
+
+
 class Config(BaseModel):
     server: ServerConfig = Field(default_factory=ServerConfig)
     tokens: dict[str, str] = Field(default_factory=dict)
     pushover: PushoverConfig = Field(default_factory=PushoverConfig)
     allowed_origins: list[str] = Field(default_factory=list)
+    oauth: OAuthConfig = Field(default_factory=OAuthConfig)
 
     @field_validator("tokens")
     @classmethod
@@ -56,9 +67,18 @@ def load_config(path: str | Path) -> Config:
     with p.open("rb") as f:
         raw = tomllib.load(f)
 
+    oauth_raw = raw.get("oauth", {})
+    oauth_clients = {
+        k: OAuthClientConfig(**v)
+        for k, v in oauth_raw.get("clients", {}).items()
+    }
     return Config(
         server=ServerConfig(**raw.get("server", {})),
         tokens=raw.get("tokens", {}),
         pushover=PushoverConfig(**raw.get("pushover", {})),
         allowed_origins=raw.get("security", {}).get("allowed_origins", []),
+        oauth=OAuthConfig(
+            token_ttl_seconds=oauth_raw.get("token_ttl_seconds", 86400),
+            clients=oauth_clients,
+        ),
     )
