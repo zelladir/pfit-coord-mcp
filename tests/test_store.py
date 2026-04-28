@@ -12,10 +12,12 @@ from pfit_coord_mcp.store import (
     get_message,
     init_db,
     list_threads,
+    lookup_oauth_token,
     mark_notified,
     pending_notifications,
     post_message,
     read_messages,
+    store_oauth_token,
 )
 
 
@@ -228,3 +230,36 @@ def test_list_threads_excludes_closed_by_default(temp_db):
     assert open_id in open_only
     assert closed_id not in open_only
     assert closed_id in all_threads
+
+
+def test_store_and_lookup_valid_oauth_token(tmp_path):
+    db = str(tmp_path / "t.db")
+    init_db(db)
+    store_oauth_token(db, "oat_valid", "ccw_test", "claude-web", "2099-01-01T00:00:00+00:00")
+    row = lookup_oauth_token(db, "oat_valid")
+    assert row is not None
+    assert row["agent_id"] == "claude-web"
+    assert row["client_id"] == "ccw_test"
+
+
+def test_lookup_expired_oauth_token(tmp_path):
+    db = str(tmp_path / "t.db")
+    init_db(db)
+    store_oauth_token(db, "oat_expired", "ccw_test", "claude-web", "2000-01-01T00:00:00+00:00")
+    assert lookup_oauth_token(db, "oat_expired") is None
+
+
+def test_lookup_missing_oauth_token(tmp_path):
+    db = str(tmp_path / "t.db")
+    init_db(db)
+    assert lookup_oauth_token(db, "oat_nonexistent") is None
+
+
+def test_init_db_creates_oauth_table(tmp_path):
+    db = str(tmp_path / "t.db")
+    init_db(db)
+    import sqlite3
+    conn = sqlite3.connect(db)
+    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    conn.close()
+    assert "oauth_access_tokens" in tables

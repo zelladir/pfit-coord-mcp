@@ -32,3 +32,14 @@ allowed_origins = [
     "http://localhost:8765",
     "http://127.0.0.1:8765",
 ]
+
+[oauth]
+# Access token lifetime in seconds (default: 86400 = 24 hours).
+token_ttl_seconds = 86400
+
+# Pre-configured OAuth clients for hosted AI connectors (Claude Web, ChatGPT, Gemini, etc.).
+# Generate credentials with:
+#   python -c "import secrets; print('ccw_' + secrets.token_urlsafe(16)); print('ccs_' + secrets.token_urlsafe(32))"
+# Then paste the client_id and secret into the connector's OAuth settings in its UI.
+# [oauth.clients]
+# "REPLACE_WITH_CLIENT_ID" = { secret = "REPLACE_WITH_CLIENT_SECRET", agent_id = "claude-web" }

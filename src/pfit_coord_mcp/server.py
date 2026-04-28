@@ -28,6 +28,7 @@ from .auth import (
     OriginAllowlistMiddleware,
 )
 from .config import Config, load_config
+from .oauth import build_oauth_routes
 from .models import (
     CoordAckInput,
     CoordPostInput,
@@ -278,11 +279,12 @@ def build_app(config: Config) -> Starlette:
     return Starlette(
         routes=[
             Route(HEALTH_PATH, health),
+            *build_oauth_routes(config),
             Mount("/", app=mcp_asgi),
         ],
         middleware=[
             Middleware(OriginAllowlistMiddleware, allowed_origins=config.allowed_origins),
-            Middleware(BearerTokenMiddleware, token_map=config.tokens),
+            Middleware(BearerTokenMiddleware, token_map=config.tokens, db_path=config.server.db_path),
             Middleware(AgentContextMiddleware),
         ],
         lifespan=lambda app: mcp.session_manager.run(),

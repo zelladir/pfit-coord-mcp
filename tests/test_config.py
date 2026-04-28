@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import textwrap
+
 import pytest
 
-from pfit_coord_mcp.config import load_config
+from pfit_coord_mcp.config import (
+    Config, OAuthClientConfig, OAuthConfig, PushoverConfig, ServerConfig, load_config
+)
 
 
 def test_load_config_from_toml(tmp_path):
@@ -95,3 +99,79 @@ app_token = ""
     )
     with pytest.raises(ValueError, match="rogue-agent"):
         load_config(str(cfg_path))
+
+
+def test_oauth_config_defaults():
+    config = Config(
+        server=ServerConfig(port=8765, db_path="./data/coord.db"),
+        tokens={"tok": "claude-code"},
+        pushover=PushoverConfig(dry_run=True),
+        allowed_origins=[],
+    )
+    assert config.oauth.token_ttl_seconds == 86400
+    assert config.oauth.clients == {}
+
+
+def test_oauth_config_loads_clients():
+    config = Config(
+        server=ServerConfig(port=8765, db_path="./data/coord.db"),
+        tokens={"tok": "claude-code"},
+        pushover=PushoverConfig(dry_run=True),
+        allowed_origins=[],
+        oauth=OAuthConfig(
+            token_ttl_seconds=3600,
+            clients={"ccw_abc": OAuthClientConfig(secret="ccs_xyz", agent_id="claude-web")},
+        ),
+    )
+    assert config.oauth.token_ttl_seconds == 3600
+    assert config.oauth.clients["ccw_abc"].agent_id == "claude-web"
+    assert config.oauth.clients["ccw_abc"].secret == "ccs_xyz"
+
+
+def test_load_config_with_oauth_section(tmp_path):
+    toml = textwrap.dedent("""
+        [server]
+        port = 8765
+        db_path = "./data/coord.db"
+
+        [tokens]
+        "static-token" = "claude-code"
+
+        [pushover]
+        dry_run = true
+
+        [security]
+        allowed_origins = ["https://mcp.asquaredhome.com"]
+
+        [oauth]
+        token_ttl_seconds = 7200
+
+        [oauth.clients]
+        "ccw_test" = { secret = "ccs_test", agent_id = "claude-web" }
+    """)
+    p = tmp_path / "config.toml"
+    p.write_text(toml)
+    config = load_config(str(p))
+    assert config.oauth.token_ttl_seconds == 7200
+    assert config.oauth.clients["ccw_test"].agent_id == "claude-web"
+
+
+def test_load_config_without_oauth_section(tmp_path):
+    toml = textwrap.dedent("""
+        [server]
+        port = 8765
+        db_path = "./data/coord.db"
+
+        [tokens]
+        "tok" = "claude-code"
+
+        [pushover]
+        dry_run = true
+
+        [security]
+        allowed_origins = []
+    """)
+    p = tmp_path / "config.toml"
+    p.write_text(toml)
+    config = load_config(str(p))
+    assert config.oauth.clients == {}

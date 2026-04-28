@@ -41,6 +41,14 @@ CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS oauth_access_tokens (
+    token      TEXT PRIMARY KEY,
+    client_id  TEXT NOT NULL,
+    agent_id   TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+);
 """
 
 
@@ -236,3 +244,31 @@ def close_thread(db_path: str, thread_id: str) -> None:
     """Mark a thread as closed."""
     with _connect(db_path) as conn:
         conn.execute("UPDATE threads SET closed = 1 WHERE id = ?", (thread_id,))
+
+
+def store_oauth_token(
+    db_path: str,
+    token: str,
+    client_id: str,
+    agent_id: str,
+    expires_at: str,
+) -> None:
+    """Store an issued OAuth access token."""
+    with _connect(db_path) as conn:
+        conn.execute(
+            "INSERT INTO oauth_access_tokens (token, client_id, agent_id, created_at, expires_at)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (token, client_id, agent_id, _now_iso(), expires_at),
+        )
+
+
+def lookup_oauth_token(db_path: str, token: str) -> sqlite3.Row | None:
+    """Return the token row if it exists and has not expired; None otherwise.
+
+    Both missing and expired tokens return None — callers cannot distinguish them.
+    """
+    with _connect(db_path) as conn:
+        return conn.execute(
+            "SELECT * FROM oauth_access_tokens WHERE token = ? AND expires_at > ?",
+            (token, _now_iso()),
+        ).fetchone()
